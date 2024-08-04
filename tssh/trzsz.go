@@ -32,10 +32,13 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/trzsz/trzsz-go/trzsz"
 )
+
+var outputWaitGroup sync.WaitGroup
 
 func writeAll(dst io.Writer, data []byte) error {
 	m := 0
@@ -53,6 +56,11 @@ func writeAll(dst io.Writer, data []byte) error {
 func wrapStdIO(serverIn io.WriteCloser, serverOut io.Reader, serverErr io.Reader, tty bool) {
 	win := runtime.GOOS == "windows"
 	forwardIO := func(reader io.Reader, writer io.WriteCloser, input bool) {
+		done := true
+		if !input {
+			done = false
+			outputWaitGroup.Add(1)
+		}
 		defer writer.Close()
 		buffer := make([]byte, 32*1024)
 		for {
@@ -72,20 +80,20 @@ func wrapStdIO(serverIn io.WriteCloser, serverOut io.Reader, serverErr io.Reader
 				}
 			}
 			if err == io.EOF {
-				if win && tty && input {
+				if win && isTerminal && tty && input {
 					_, _ = writer.Write([]byte{0x1A}) // ctrl + z
 					continue
 				}
-				if !input {
-					continue // ignore output EOF
+				if input {
+					return // input EOF
 				}
-				// delay and close
-				for {
-					time.Sleep(time.Second)
-					if lastTime := lastServerAliveTime.Load(); lastTime != nil && time.Since(*lastTime) > 2*time.Second {
-						return
-					}
+				// ignore output EOF
+				if !done {
+					outputWaitGroup.Done()
+					done = true
 				}
+				time.Sleep(100 * time.Millisecond)
+				continue
 			}
 			if err != nil {
 				return
@@ -113,9 +121,10 @@ func enableTrzsz(args *sshArgs, ss *sshClientSession) error {
 	disableTrzsz := strings.ToLower(getExOptionConfig(args, "EnableTrzsz")) == "no"
 	enableZmodem := args.Zmodem || strings.ToLower(getExOptionConfig(args, "EnableZmodem")) == "yes"
 	enableDragFile := args.DragFile || strings.ToLower(getExOptionConfig(args, "EnableDragFile")) == "yes"
+	enableOSC52 := strings.ToLower(getExOptionConfig(args, "EnableOSC52")) == "yes"
 
 	// disable trzsz ( trz / tsz )
-	if disableTrzsz && !enableZmodem && !enableDragFile {
+	if disableTrzsz && !enableZmodem && !enableDragFile && !enableOSC52 {
 		wrapStdIO(ss.serverIn, ss.serverOut, ss.serverErr, ss.tty)
 		onTerminalResize(func(width, height int) { _ = ss.session.WindowChange(height, width) })
 		return nil
@@ -127,7 +136,7 @@ func enableTrzsz(args *sshArgs, ss *sshClientSession) error {
 
 	trzsz.SetAffectedByWindows(false)
 
-	if args.Relay || isNoGUI() {
+	if args.Relay || !args.Client && isNoGUI() {
 		// run as a relay
 		trzszRelay := trzsz.NewTrzszRelay(os.Stdin, os.Stdout, ss.serverIn, ss.serverOut, trzsz.TrzszOptions{
 			DetectTraceLog: args.TraceLog,
@@ -161,6 +170,12 @@ func enableTrzsz(args *sshArgs, ss *sshClientSession) error {
 		DetectDragFile:  enableDragFile,
 		DetectTraceLog:  args.TraceLog,
 		EnableZmodem:    enableZmodem,
+		EnableOSC52:     enableOSC52,
+	})
+
+	// reset terminal on exit
+	onExitFuncs = append(onExitFuncs, func() {
+		trzszFilter.ResetTerminal()
 	})
 
 	// reset terminal size on resize
@@ -169,9 +184,22 @@ func enableTrzsz(args *sshArgs, ss *sshClientSession) error {
 		_ = ss.session.WindowChange(height, width)
 	})
 
-	// setup default paths
+	// setup trzsz config
 	trzszFilter.SetDefaultUploadPath(userConfig.defaultUploadPath)
-	trzszFilter.SetDefaultDownloadPath(userConfig.defaultDownloadPath)
+
+	downloadPath := args.DownloadPath
+	if downloadPath == "" {
+		downloadPath = userConfig.defaultDownloadPath
+	}
+	trzszFilter.SetDefaultDownloadPath(downloadPath)
+
+	dragFileUploadCommand := getExOptionConfig(args, "DragFileUploadCommand")
+	if dragFileUploadCommand == "" {
+		dragFileUploadCommand = userConfig.dragFileUploadCommand
+	}
+	trzszFilter.SetDragFileUploadCommand(dragFileUploadCommand)
+
+	trzszFilter.SetProgressColorPair(userConfig.progressColorPair)
 
 	// setup tunnel connect
 	trzszFilter.SetTunnelConnector(func(port int) net.Conn {

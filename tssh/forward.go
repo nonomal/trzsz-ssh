@@ -55,6 +55,10 @@ type forwardCfg struct {
 	destPort int
 }
 
+type closeWriter interface {
+	CloseWrite() error
+}
+
 var spaceRegexp = regexp.MustCompile(`\s+`)
 var portOnlyRegexp = regexp.MustCompile(`^\d+$`)
 var ipv6AndPortRegexp = regexp.MustCompile(`^\[([:\da-fA-F]+)\]:(\d+)$`)
@@ -223,7 +227,7 @@ func listenOnLocal(args *sshArgs, addr *string, port string) (listeners []net.Li
 	return
 }
 
-func listenOnRemote(args *sshArgs, client sshClient, addr *string, port string) (listeners []net.Listener) {
+func listenOnRemote(args *sshArgs, client SshClient, addr *string, port string) (listeners []net.Listener) {
 	listen := func(network, address string) {
 		listener, err := client.Listen(network, address)
 		if err != nil {
@@ -247,7 +251,7 @@ func listenOnRemote(args *sshArgs, client sshClient, addr *string, port string) 
 	return
 }
 
-func stdioForward(client sshClient, addr string) (*sync.WaitGroup, error) {
+func stdioForward(client SshClient, addr string) (*sync.WaitGroup, error) {
 	conn, err := client.DialTimeout("tcp", addr, 10*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("stdio forward failed: %v", err)
@@ -279,7 +283,7 @@ func (d sshResolver) Resolve(ctx context.Context, name string) (context.Context,
 	return ctx, []byte{}, nil
 }
 
-func dynamicForward(client sshClient, b *bindCfg, args *sshArgs) {
+func dynamicForward(client SshClient, b *bindCfg, args *sshArgs) {
 	server, err := socks5.New(&socks5.Config{
 		Resolver: &sshResolver{},
 		Dial: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -330,7 +334,7 @@ func netForward(local, remote net.Conn) {
 	<-done
 }
 
-func localForward(client sshClient, f *forwardCfg, args *sshArgs) {
+func localForward(client SshClient, f *forwardCfg, args *sshArgs) {
 	remoteAddr := joinHostPort(f.destHost, strconv.Itoa(f.destPort))
 	for _, listener := range listenOnLocal(args, f.bindAddr, strconv.Itoa(f.bindPort)) {
 		go func(listener net.Listener) {
@@ -356,7 +360,7 @@ func localForward(client sshClient, f *forwardCfg, args *sshArgs) {
 	}
 }
 
-func remoteForward(client sshClient, f *forwardCfg, args *sshArgs) {
+func remoteForward(client SshClient, f *forwardCfg, args *sshArgs) {
 	localAddr := joinHostPort(f.destHost, strconv.Itoa(f.destPort))
 	for _, listener := range listenOnRemote(args, client, f.bindAddr, strconv.Itoa(f.bindPort)) {
 		go func(listener net.Listener) {
@@ -382,7 +386,7 @@ func remoteForward(client sshClient, f *forwardCfg, args *sshArgs) {
 	}
 }
 
-func sshForward(client sshClient, args *sshArgs, param *sshParam) error {
+func sshForward(client SshClient, args *sshArgs, param *sshParam) error {
 	// clear all forwardings
 	if strings.ToLower(getOptionConfig(args, "ClearAllForwardings")) == "yes" {
 		return nil
@@ -447,7 +451,7 @@ type x11Request struct {
 	ScreenNumber     uint32
 }
 
-func sshX11Forward(args *sshArgs, client sshClient, session sshSession) {
+func sshX11Forward(args *sshArgs, client SshClient, session SshSession) {
 	if args.NoX11Forward || !args.X11Untrusted && !args.X11Trusted && strings.ToLower(getOptionConfig(args, "ForwardX11")) != "yes" {
 		return
 	}
@@ -489,7 +493,7 @@ func sshX11Forward(args *sshArgs, client sshClient, session sshSession) {
 		AuthCookie:       cookie,
 		ScreenNumber:     0,
 	}
-	ok, err := session.SendRequest("x11-req", true, ssh.Marshal(payload))
+	ok, err := session.SendRequest(kX11RequestName, true, ssh.Marshal(payload))
 	if err != nil {
 		warning("X11 forwarding request failed: %v", err)
 		return
@@ -499,9 +503,9 @@ func sshX11Forward(args *sshArgs, client sshClient, session sshSession) {
 		return
 	}
 
-	channels := client.HandleChannelOpen("x11")
+	channels := client.HandleChannelOpen(kX11ChannelType)
 	if channels == nil {
-		warning("already have handler for x11")
+		warning("already have handler for %s", kX11ChannelType)
 		return
 	}
 	go func() {
@@ -589,8 +593,12 @@ func forwardChannel(channel ssh.Channel, conn net.Conn) {
 	wg.Add(2)
 	go func() {
 		_, _ = io.Copy(conn, channel)
-		if unixConn, ok := conn.(*net.UnixConn); ok {
-			_ = unixConn.CloseWrite()
+		if cw, ok := conn.(closeWriter); ok {
+			_ = cw.CloseWrite()
+		} else {
+			// close the entire stream since there is no half-close
+			time.Sleep(200 * time.Millisecond)
+			_ = conn.Close()
 		}
 		wg.Done()
 	}()

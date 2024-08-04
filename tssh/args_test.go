@@ -85,18 +85,27 @@ func TestSshArgs(t *testing.T) {
 	assertArgsEqual("--dragfile", sshArgs{DragFile: true})
 	assertArgsEqual("--tracelog", sshArgs{TraceLog: true})
 	assertArgsEqual("--relay", sshArgs{Relay: true})
+	assertArgsEqual("--client", sshArgs{Client: true})
 	assertArgsEqual("--debug", sshArgs{Debug: true})
 	assertArgsEqual("--zmodem", sshArgs{Zmodem: true})
 
-	assertArgsEqual("--udp", sshArgs{UdpMode: true})
+	assertArgsEqual("--udp", sshArgs{Udp: true})
 	assertArgsEqual("--tsshd-path /usr/bin/tsshd", sshArgs{TsshdPath: "/usr/bin/tsshd"})
 
 	assertArgsEqual("--new-host", sshArgs{NewHost: true})
 	assertArgsEqual("--enc-secret", sshArgs{EncSecret: true})
 	assertArgsEqual("--install-trzsz", sshArgs{InstallTrzsz: true})
+	assertArgsEqual("--install-tsshd", sshArgs{InstallTsshd: true})
 	assertArgsEqual("--install-trzsz --install-path /bin", sshArgs{InstallTrzsz: true, InstallPath: "/bin"})
 	assertArgsEqual("--install-trzsz --trzsz-version 1.1.6", sshArgs{InstallTrzsz: true, TrzszVersion: "1.1.6"})
 	assertArgsEqual("--install-trzsz --trzsz-bin-path a.tgz", sshArgs{InstallTrzsz: true, TrzszBinPath: "a.tgz"})
+	assertArgsEqual("--install-tsshd --install-path /bin", sshArgs{InstallTsshd: true, InstallPath: "/bin"})
+	assertArgsEqual("--install-tsshd --tsshd-version 0.1.2", sshArgs{InstallTsshd: true, TsshdVersion: "0.1.2"})
+	assertArgsEqual("--install-tsshd --tsshd-bin-path b.tgz", sshArgs{InstallTsshd: true, TsshdBinPath: "b.tgz"})
+
+	assertArgsEqual("--upload-file /tmp/1", sshArgs{UploadFile: multiStr{[]string{"/tmp/1"}}})
+	assertArgsEqual("--upload-file /tmp/1 --upload-file /tmp/2", sshArgs{UploadFile: multiStr{[]string{"/tmp/1", "/tmp/2"}}})
+	assertArgsEqual("--download-path ~/Downloads", sshArgs{DownloadPath: "~/Downloads"})
 
 	assertArgsEqual("dest", sshArgs{Destination: "dest"})
 	assertArgsEqual("dest cmd", sshArgs{Destination: "dest", Command: "cmd"})

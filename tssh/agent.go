@@ -39,6 +39,9 @@ var (
 	agentClient agent.ExtendedAgent
 )
 
+type agentRequest struct {
+}
+
 func getAgentAddr(args *sshArgs, param *sshParam) (string, error) {
 	if addr := getOptionConfig(args, "IdentityAgent"); addr != "" {
 		if strings.ToLower(addr) == "none" {
@@ -85,12 +88,10 @@ func getAgentClient(args *sshArgs, param *sshParam) agent.ExtendedAgent {
 	return agentClient
 }
 
-const channelType = "auth-agent@openssh.com"
-
-func forwardToRemote(client sshClient, addr string) error {
-	channels := client.HandleChannelOpen(channelType)
+func forwardToRemote(client SshClient, addr string) error {
+	channels := client.HandleChannelOpen(kAgentChannelType)
 	if channels == nil {
-		return fmt.Errorf("agent: already have handler for %s", channelType)
+		return fmt.Errorf("agent: already have handler for %s", kAgentChannelType)
 	}
 	conn, err := dialAgent(addr)
 	if err != nil {
@@ -121,8 +122,8 @@ func forwardAgentRequest(channel ssh.Channel, addr string) {
 	forwardChannel(channel, conn)
 }
 
-func requestAgentForwarding(session sshSession) error {
-	ok, err := session.SendRequest("auth-agent-req@openssh.com", true, nil)
+func requestAgentForwarding(session SshSession) error {
+	ok, err := session.SendRequest(kAgentRequestName, true, nil)
 	if err != nil {
 		return err
 	}

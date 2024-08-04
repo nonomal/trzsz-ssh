@@ -78,16 +78,22 @@ type sshArgs struct {
 	DragFile       bool        `arg:"--dragfile" help:"enable drag files and directories to upload"`
 	TraceLog       bool        `arg:"--tracelog" help:"enable trzsz detect trace logs for debugging"`
 	Relay          bool        `arg:"--relay" help:"force trzsz run as a relay on the jump server"`
+	Client         bool        `arg:"--client" help:"force trzsz run as a client on the jump server"`
 	Debug          bool        `arg:"--debug" help:"verbose mode for debugging, same as ssh's -vvv"`
 	Zmodem         bool        `arg:"--zmodem" help:"enable zmodem lrzsz ( rz / sz ) feature"`
-	UdpMode        bool        `arg:"--udp" help:"ssh over UDP protocol like mosh"`
+	Udp            bool        `arg:"--udp" help:"ssh over UDP like mosh (default mode: QUIC)"`
 	TsshdPath      string      `arg:"--tsshd-path" placeholder:"path" help:"[udp] tsshd absolute path on the server"`
 	NewHost        bool        `arg:"--new-host" help:"[tools] add new host to configuration"`
 	EncSecret      bool        `arg:"--enc-secret" help:"[tools] encode secret for configuration"`
 	InstallTrzsz   bool        `arg:"--install-trzsz" help:"[tools] install trzsz to the remote server"`
+	InstallTsshd   bool        `arg:"--install-tsshd" help:"[tools] install tsshd to the remote server"`
 	InstallPath    string      `arg:"--install-path" placeholder:"path" help:"[tools] install path, default: '~/.local/bin/'"`
 	TrzszVersion   string      `arg:"--trzsz-version" placeholder:"x.x.x" help:"[tools] install the specified version of trzsz"`
 	TrzszBinPath   string      `arg:"--trzsz-bin-path" placeholder:"path" help:"[tools] trzsz binary installation package path"`
+	TsshdVersion   string      `arg:"--tsshd-version" placeholder:"x.x.x" help:"[tools] install the specified version of tsshd"`
+	TsshdBinPath   string      `arg:"--tsshd-bin-path" placeholder:"path" help:"[tools] tsshd binary installation package path"`
+	UploadFile     multiStr    `arg:"--upload-file" placeholder:"path" help:"[tools] upload the local file to remote server"`
+	DownloadPath   string      `arg:"--download-path" placeholder:"path" help:"[tools] the local saving path for downloading"`
 	originalDest   string
 }
 
