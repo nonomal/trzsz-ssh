@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2023-2024 The Trzsz SSH Authors.
+Copyright (c) 2023-2026 The Trzsz SSH Authors.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -66,6 +66,15 @@ func isUserValid(user string) bool {
 	return true
 }
 
+func isPortValid(port string) bool {
+	for _, ch := range port {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 var getHostname = func() string {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -75,7 +84,7 @@ var getHostname = func() string {
 	return hostname
 }
 
-func expandTokens(str string, args *sshArgs, param *sshParam, tokens string) (string, error) {
+func expandTokens(str string, param *sshParam, tokens string) (string, error) {
 	if !strings.ContainsRune(str, '%') {
 		return str, nil
 	}
@@ -100,18 +109,24 @@ func expandTokens(str string, args *sshArgs, param *sshParam, tokens string) (st
 			buf.WriteRune('%')
 		case 'h':
 			if !isHostValid(param.host) {
-				return "", fmt.Errorf("hostname contains invalid characters")
+				return "", fmt.Errorf("host [%s] contains invalid characters", param.host)
 			}
 			buf.WriteString(param.host)
 		case 'p':
+			if !isPortValid(param.port) {
+				return "", fmt.Errorf("port [%s] contains invalid characters", param.port)
+			}
 			buf.WriteString(param.port)
 		case 'r':
 			if !isUserValid(param.user) {
-				return "", fmt.Errorf("remote username contains invalid characters")
+				return "", fmt.Errorf("user [%s] contains invalid characters", param.user)
 			}
 			buf.WriteString(param.user)
 		case 'n':
-			buf.WriteString(args.Destination)
+			if !isHostValid(param.args.Destination) {
+				return "", fmt.Errorf("destination [%s] contains invalid characters", param.args.Destination)
+			}
+			buf.WriteString(param.args.Destination)
 		case 'l':
 			buf.WriteString(getHostname())
 		case 'L':
@@ -121,15 +136,31 @@ func expandTokens(str string, args *sshArgs, param *sshParam, tokens string) (st
 			}
 			buf.WriteString(hostname)
 		case 'j':
-			if len(param.proxy) > 0 {
-				buf.WriteString(param.proxy[len(param.proxy)-1])
+			if len(param.proxies) > 0 {
+				proxy := param.proxies[len(param.proxies)-1]
+				if !isHostValid(proxy) {
+					return "", fmt.Errorf("proxy [%s] contains invalid characters", proxy)
+				}
+				buf.WriteString(proxy)
 			}
 		case 'C':
 			hashStr := fmt.Sprintf("%s%s%s%s", getHostname(), param.host, param.port, param.user)
-			if len(param.proxy) > 0 && strings.ContainsRune(tokens, 'j') {
-				hashStr += param.proxy[len(param.proxy)-1]
+			if len(param.proxies) > 0 && strings.ContainsRune(tokens, 'j') {
+				hashStr += param.proxies[len(param.proxies)-1]
 			}
-			buf.WriteString(fmt.Sprintf("%x", sha1.Sum([]byte(hashStr))))
+			fmt.Fprintf(&buf, "%x", sha1.Sum([]byte(hashStr)))
+		case 'k':
+			if hostKeyAlias := getOptionConfig(param.args, "HostKeyAlias"); hostKeyAlias != "" {
+				if !isHostValid(hostKeyAlias) {
+					return "", fmt.Errorf("HostKeyAlias [%s] contains invalid characters", hostKeyAlias)
+				}
+				buf.WriteString(hostKeyAlias)
+			} else {
+				if !isHostValid(param.args.Destination) {
+					return "", fmt.Errorf("destination [%s] contains invalid characters", param.args.Destination)
+				}
+				buf.WriteString(param.args.Destination)
+			}
 		default:
 			return "", fmt.Errorf("token [%%%c] in [%s] is not supported yet", c, str)
 		}
@@ -138,4 +169,20 @@ func expandTokens(str string, args *sshArgs, param *sshParam, tokens string) (st
 		return "", fmt.Errorf("[%s] ends with %% is invalid", str)
 	}
 	return buf.String(), nil
+}
+
+func containsToken(s string, token byte) bool {
+	for i, n := 0, len(s)-1; i < n; i++ {
+		if s[i] != '%' {
+			continue
+		}
+		i++
+		switch s[i] {
+		case '%':
+			// skip %%
+		case token:
+			return true
+		}
+	}
+	return false
 }

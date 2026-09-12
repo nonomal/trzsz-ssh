@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2023-2024 The Trzsz SSH Authors.
+Copyright (c) 2023-2026 The Trzsz SSH Authors.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30,20 +30,24 @@ import (
 	"math"
 	"os"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/colorprofile"
 )
 
-const (
+var (
 	redColor     = lipgloss.Color("1")
 	greenColor   = lipgloss.Color("2")
 	yellowColor  = lipgloss.Color("3")
 	blueColor    = lipgloss.Color("4")
 	magentaColor = lipgloss.Color("5")
 	cyanColor    = lipgloss.Color("6")
+	blackColor   = lipgloss.Color("16")
 )
 
 func hideCursor(writer io.Writer) {
@@ -52,6 +56,61 @@ func hideCursor(writer io.Writer) {
 
 func showCursor(writer io.Writer) {
 	_, _ = writer.Write([]byte("\x1b[?25h"))
+}
+
+var stdinFallbackBuf []byte
+var stdinFallbackMu sync.Mutex
+
+type teaStdinReader struct {
+	fallbackFn func([]byte)
+	cancelled  atomic.Bool
+}
+
+func (r *teaStdinReader) Read(p []byte) (int, error) {
+	stdinFallbackMu.Lock()
+	defer stdinFallbackMu.Unlock()
+
+	if len(stdinFallbackBuf) > 0 {
+		n := copy(p, stdinFallbackBuf)
+		if n < len(stdinFallbackBuf) {
+			stdinFallbackBuf = stdinFallbackBuf[n:]
+		} else {
+			stdinFallbackBuf = nil
+		}
+		return n, nil
+	}
+
+	n, err := os.Stdin.Read(p)
+
+	if n > 0 && r.cancelled.Load() {
+		if r.fallbackFn != nil {
+			r.fallbackFn(p[:n])
+		} else {
+			stdinFallbackBuf = append(stdinFallbackBuf, p[:n]...)
+		}
+		return 0, io.EOF
+	}
+
+	return n, err
+}
+
+func newTeaOptions(fallbackFn func([]byte)) ([]tea.ProgramOption, func()) {
+	if !isRunningOnOldWindows.Load() {
+		return []tea.ProgramOption{tea.WithInput(os.Stdin)}, func() {}
+	}
+
+	width, height, err := getTerminalSize()
+	if err != nil {
+		warning("get terminal size failed: %v", err)
+		width, height = 80, 40
+	}
+
+	trr := &teaStdinReader{fallbackFn: fallbackFn}
+	return []tea.ProgramOption{
+		tea.WithInput(trr),
+		tea.WithWindowSize(width, height),
+		tea.WithColorProfile(colorprofile.ANSI256),
+	}, func() { trr.cancelled.Store(true) }
 }
 
 type toolsProgress struct {
@@ -69,7 +128,8 @@ func newToolsProgress(tool, name string, totalSize int) *toolsProgress {
 }
 
 func (p *toolsProgress) writeMessage(format string, a ...any) {
-	fmt.Fprintf(os.Stderr, fmt.Sprintf("\r\033[0;36m%s %s\033[0m", p.prefix, format), a...)
+	msg := fmt.Sprintf(format, a...)
+	fmt.Fprintf(os.Stderr, "\r\033[0;36m%s %s\033[0m", p.prefix, msg)
 }
 
 func (p *toolsProgress) addStep(delta int) {
@@ -100,20 +160,25 @@ func (p *toolsProgress) stopProgress() {
 }
 
 func toolsInfo(tool, format string, a ...any) {
-	fmt.Fprintf(os.Stderr, fmt.Sprintf("\033[0;36m[%s] %s\033[0m\r\n", tool, format), a...)
+	msg := fmt.Sprintf(format, a...)
+	fmt.Fprintf(os.Stderr, "\033[0;36m[%s] %s\033[0m\r\n", tool, msg)
 }
 
 func toolsWarn(tool, format string, a ...any) {
-	fmt.Fprintf(os.Stderr, fmt.Sprintf("\033[0;33m[%s] %s\033[0m\r\n", tool, format), a...)
+	msg := fmt.Sprintf(format, a...)
+	fmt.Fprintf(os.Stderr, "\033[0;33m[%s] %s\033[0m\r\n", tool, msg)
 }
 
 func toolsSucc(tool, format string, a ...any) {
-	fmt.Fprintf(os.Stderr, fmt.Sprintf("\033[0;32m[%s] %s\033[0m\r\n", tool, format), a...)
+	msg := fmt.Sprintf(format, a...)
+	fmt.Fprintf(os.Stderr, "\033[0;32m[%s] %s\033[0m\r\n", tool, msg)
 }
 
 func toolsErrorExit(format string, a ...any) {
-	fmt.Fprintf(os.Stderr, fmt.Sprintf("\033[0;31m%s\033[0m\r\n", format), a...)
-	os.Exit(-1)
+	msg := fmt.Sprintf(format, a...)
+	fmt.Fprintf(os.Stderr, "\033[0;31m%s\033[0m\r\n", msg)
+	cleanupOnExit()
+	os.Exit(kExitCodeToolsError)
 }
 
 func printToolsHelp(title string) {
@@ -142,15 +207,15 @@ func (m *textInputModel) Init() tea.Cmd {
 
 func (m *textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyCtrlC:
+	case tea.KeyPressMsg:
+		switch keypress := msg.String(); keypress {
+		case "ctrl+c":
 			m.quit = true
 			return m, tea.Quit
-		case tea.KeyCtrlW:
+		case "ctrl+w":
 			m.textInput.SetValue("")
 			return m, nil
-		case tea.KeyEnter:
+		case "enter":
 			err := m.validator.validate(m.getValue())
 			if err != nil {
 				m.err = err
@@ -158,7 +223,7 @@ func (m *textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.done = true
 			return m, tea.Quit
-		case tea.KeyRunes, tea.KeySpace:
+		default:
 			m.err = nil
 		}
 	case error:
@@ -171,10 +236,10 @@ func (m *textInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *textInputModel) View() string {
+func (m *textInputModel) View() tea.View {
 	if m.done {
-		return fmt.Sprintf("%s%s%s\r\n\r\n", lipgloss.NewStyle().Foreground(greenColor).Render(m.promptLabel),
-			lipgloss.NewStyle().Faint(true).Render(": "), m.getValue())
+		return tea.NewView(fmt.Sprintf("%s%s%s\n\n", lipgloss.NewStyle().Foreground(greenColor).Render(m.promptLabel),
+			lipgloss.NewStyle().Faint(true).Render(": "), m.getValue()))
 	}
 
 	var builder strings.Builder
@@ -187,13 +252,13 @@ func (m *textInputModel) View() string {
 	if !m.quit {
 		builder.WriteString(m.textInput.View())
 	}
-	builder.WriteString("\r\n")
+	builder.WriteByte('\n')
 	if m.err != nil {
 		builder.WriteString(lipgloss.NewStyle().Foreground(redColor).Render(m.err.Error()))
 	} else if m.helpMessage != "" {
 		builder.WriteString(lipgloss.NewStyle().Faint(true).Render(m.helpMessage))
 	}
-	return builder.String()
+	return tea.NewView(builder.String())
 }
 
 func (m *textInputModel) getValue() string {
@@ -205,6 +270,9 @@ func (m *textInputModel) getValue() string {
 }
 
 func promptTextInput(promptLabel, defaultValue, helpMessage string, validator *inputValidator) string {
+	teaOpts, cancelReader := newTeaOptions(nil)
+	defer cancelReader()
+
 	textInput := textinput.New()
 	textInput.Prompt = ": "
 	textInput.Focus()
@@ -214,10 +282,11 @@ func promptTextInput(promptLabel, defaultValue, helpMessage string, validator *i
 		helpMessage:  helpMessage,
 		textInput:    textInput,
 		validator:    validator,
-	}).Run()
+	}, teaOpts...).Run()
 
 	if model, ok := m.(*textInputModel); err == nil && ok {
 		if model.quit {
+			cleanupOnExit()
 			os.Exit(0)
 		}
 		return model.getValue()
@@ -280,15 +349,15 @@ func (m *passwordModel) Init() tea.Cmd {
 
 func (m *passwordModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyCtrlC:
+	case tea.KeyPressMsg:
+		switch keypress := msg.String(); keypress {
+		case "ctrl+c":
 			m.quit = true
 			return m, tea.Quit
-		case tea.KeyCtrlW:
+		case "ctrl+w":
 			m.passwordInput = ""
 			return m, nil
-		case tea.KeyEnter:
+		case "enter":
 			err := m.validator.validate(m.passwordInput)
 			if err != nil {
 				m.err = err
@@ -296,14 +365,17 @@ func (m *passwordModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.done = true
 			return m, tea.Quit
-		case tea.KeyBackspace:
+		case "backspace":
 			if len(m.passwordInput) > 0 {
 				m.passwordInput = m.passwordInput[:len(m.passwordInput)-1]
 			}
-		case tea.KeyRunes, tea.KeySpace:
-			m.passwordInput += string(msg.Runes)
+		default:
+			m.passwordInput += msg.Key().Text
 			m.err = nil
 		}
+	case tea.PasteMsg:
+		m.passwordInput += msg.String()
+		m.err = nil
 	case error:
 		m.err = msg
 		return m, nil
@@ -314,10 +386,10 @@ func (m *passwordModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *passwordModel) View() string {
+func (m *passwordModel) View() tea.View {
 	if m.done {
-		return fmt.Sprintf("%s%s%s\r\n\r\n", lipgloss.NewStyle().Foreground(greenColor).Render(m.promptLabel),
-			lipgloss.NewStyle().Faint(true).Render(": "), strings.Repeat("*", len(m.passwordInput)))
+		return tea.NewView(fmt.Sprintf("%s%s%s\n\n", lipgloss.NewStyle().Foreground(greenColor).Render(m.promptLabel),
+			lipgloss.NewStyle().Faint(true).Render(": "), strings.Repeat("*", len(m.passwordInput))))
 	}
 
 	var builder strings.Builder
@@ -331,24 +403,28 @@ func (m *passwordModel) View() string {
 	} else {
 		builder.WriteRune(' ')
 	}
-	builder.WriteString("\r\n")
+	builder.WriteByte('\n')
 	if m.err != nil {
 		builder.WriteString(lipgloss.NewStyle().Foreground(redColor).Render(m.err.Error()))
 	} else if m.helpMessage != "" {
 		builder.WriteString(lipgloss.NewStyle().Faint(true).Render(m.helpMessage))
 	}
-	return builder.String()
+	return tea.NewView(builder.String())
 }
 
 func promptPassword(promptLabel, helpMessage string, validator *inputValidator) string {
+	teaOpts, cancelReader := newTeaOptions(nil)
+	defer cancelReader()
+
 	m, err := tea.NewProgram(&passwordModel{
 		promptLabel: promptLabel,
 		helpMessage: helpMessage,
 		validator:   validator,
-	}).Run()
+	}, teaOpts...).Run()
 
 	if model, ok := m.(*passwordModel); err == nil && ok {
 		if model.quit {
+			cleanupOnExit()
 			os.Exit(0)
 		}
 		return model.passwordInput
@@ -372,7 +448,7 @@ func (m *listModel) Init() tea.Cmd {
 
 func (m *listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch keypress := msg.String(); keypress {
 		case "q", "ctrl+c":
 			m.quit = true
@@ -395,37 +471,41 @@ func (m *listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *listModel) View() string {
+func (m *listModel) View() tea.View {
 	if m.done {
-		return ""
+		return tea.NewView("")
 	}
 	var builder strings.Builder
-	builder.WriteString(lipgloss.NewStyle().Foreground(cyanColor).Render(m.promptLabel+":") + "\r\n")
+	builder.WriteString(lipgloss.NewStyle().Foreground(cyanColor).Render(m.promptLabel+":") + "\n")
 	if m.helpMessage != "" {
-		builder.WriteString(lipgloss.NewStyle().Faint(true).Render(m.helpMessage) + "\r\n")
+		builder.WriteString(lipgloss.NewStyle().Faint(true).Render(m.helpMessage) + "\n")
 	}
 	for i, item := range m.items {
 		if i == m.cursor {
-			builder.WriteString(lipgloss.NewStyle().Foreground(magentaColor).
-				Render(fmt.Sprintf("> %s", item)) + "\r\n")
+			builder.WriteString(lipgloss.NewStyle().Foreground(yellowColor).
+				Render(fmt.Sprintf("> %s", item)) + "\n")
 		} else {
-			builder.WriteString(lipgloss.NewStyle().Render(fmt.Sprintf("  %s", item)) + "\r\n")
+			builder.WriteString(lipgloss.NewStyle().Render(fmt.Sprintf("  %s", item)) + "\n")
 		}
 	}
 	builder.WriteString(lipgloss.NewStyle().Faint(true).
-		Render("Use ↓ ↑ j k or tab to navigate, Enter to choose.") + "\r\n")
-	return builder.String()
+		Render("Use ↓ ↑ j k or tab to navigate, Enter to choose.") + "\n")
+	return tea.NewView(builder.String())
 }
 
 func promptList(promptLabel, helpMessage string, listItems []string) string {
+	teaOpts, cancelReader := newTeaOptions(nil)
+	defer cancelReader()
+
 	m, err := tea.NewProgram(&listModel{
 		promptLabel: promptLabel,
 		helpMessage: helpMessage,
 		items:       listItems,
-	}).Run()
+	}, teaOpts...).Run()
 
 	if model, ok := m.(*listModel); err == nil && ok {
 		if model.quit {
+			cleanupOnExit()
 			os.Exit(0)
 		}
 		return model.items[model.cursor]
@@ -450,22 +530,29 @@ func isFileNotExistOrEmpty(path string) bool {
 // return false to continue ssh login
 func execLocalTools(args *sshArgs) (int, bool) {
 	switch {
-	case args.Ver:
-		fmt.Println(args.Version())
-		return 0, true
 	case args.EncSecret:
 		return execEncodeSecret()
-	case args.NewHost || len(os.Args) == 1 && isFileNotExistOrEmpty(userConfig.configPath):
+	case args.NewHost || args.Destination == "" && isFileNotExistOrEmpty(userConfig.configPath):
 		return execNewHost(args)
+	case args.ListHosts:
+		return execListHosts(args)
 	default:
 		return 0, false
 	}
 }
 
 // execRemoteTools execute remote tools if necessary
-func execRemoteTools(args *sshArgs, client sshClient) {
-	switch {
-	case args.InstallTrzsz:
-		execInstallTrzsz(args, client)
+func execRemoteTools(sshConn *sshConnection) (int, bool) {
+	args := sshConn.param.args
+	if args.InstallTrzsz {
+		execInstallTrzsz(args, sshConn.client)
 	}
+	if args.InstallTsshd {
+		execInstallTsshd(args, sshConn.client)
+	}
+	if len(args.UploadFile.values) > 0 {
+		code := execTrzUpload(sshConn)
+		return code, true
+	}
+	return 0, false
 }

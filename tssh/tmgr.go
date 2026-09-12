@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2023-2024 The Trzsz SSH Authors.
+Copyright (c) 2023-2026 The Trzsz SSH Authors.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -63,12 +63,12 @@ type paneHost struct {
 func getPanesMatrix(hosts []*sshHost) [][]*paneHost {
 	rows := int(math.Floor(math.Sqrt(float64(len(hosts)))))
 	cols := make([]int, rows)
-	for i := 0; i < len(hosts); i++ {
+	for i := range hosts {
 		cols[i%rows]++
 	}
 	matrix := make([][]*paneHost, rows)
 	idx := 0
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		matrix[i] = make([]*paneHost, cols[i])
 		for j := 0; j < cols[i]; j++ {
 			matrix[i][j] = &paneHost{hosts[idx].Alias, ""}

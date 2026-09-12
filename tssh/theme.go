@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2023-2024 The Trzsz SSH Authors.
+Copyright (c) 2023-2026 The Trzsz SSH Authors.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,10 +26,9 @@ package tssh
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/trzsz/trzsz-ssh/internal/table"
 )
 
@@ -41,8 +40,8 @@ type promptTheme struct {
 	Details         string
 	Shortcuts       string
 	HideLabel       bool
-	ItemsRenderer   func(items []interface{}, idx int) string
-	DetailsRenderer func(item interface{}) string
+	ItemsRenderer   func(items []any, idx int) string
+	DetailsRenderer func(item any) string
 }
 
 func getDefaultHelpTipsTemplate() string {
@@ -55,10 +54,15 @@ func getDefaultShortcutsTemplate() string {
 
 func getDefaultDetailsTemplate() string {
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf(`{{ "--------- SSH Details ----------\n" | %s }}`, getThemeColor("details_title")))
+	fmt.Fprintf(&builder, `{{ "--------- SSH Details ----------\n" | %s }}`, getThemeColor("details_title"))
 	addItem := func(name string) {
-		builder.WriteString(fmt.Sprintf(`{{- if .%s }}{{ "%s:" | %s }}{{ "\t" }}{{ .%s | %s }}{{ "\n" }}{{ end }}`,
-			name, name, getThemeColor("details_name"), name, getThemeColor("details_value")))
+		fmt.Fprintf(&builder, `{{ if hasField . "%s" }}`+
+			`{{- if .%s }}{{ "%s:" | %s }}{{ "\t" }}{{ .%s | %s }}{{ "\n" }}{{ end }}`+
+			`{{ else }}{{ $value := getExConfig .Args "%s" }}`+
+			`{{- if $value }}{{ "%s:" | %s }}{{ "\t" }}{{ $value | %s }}{{ "\n" }}{{ end }}`+
+			`{{ end }}`,
+			name, name, name, getThemeColor("details_name"), name, getThemeColor("details_value"),
+			name, name, getThemeColor("details_name"), getThemeColor("details_value"))
 	}
 	for _, item := range getPromptDetailItems() {
 		switch strings.ToLower(item) {
@@ -67,9 +71,7 @@ func getDefaultDetailsTemplate() string {
 		case "host":
 			addItem("Host")
 		case "port":
-			builder.WriteString(fmt.Sprintf(
-				`{{- if ne .Port "22" }}{{ "Port:" | %s }}{{ "\t" }}{{ .Port | %s }}{{ "\n" }}{{ end }}`,
-				getThemeColor("details_name"), getThemeColor("details_value")))
+			addItem("Port")
 		case "user":
 			addItem("User")
 		case "grouplabels":
@@ -83,7 +85,7 @@ func getDefaultDetailsTemplate() string {
 		case "remotecommand":
 			addItem("RemoteCommand")
 		default:
-			warning("Unknown prompt detail item: %s", item)
+			addItem(item)
 		}
 	}
 	return builder.String()
@@ -94,11 +96,11 @@ func getTinyTheme() *promptTheme {
 		Label: fmt.Sprintf(`{{ "? " | %s }}{{ . | %s }}{{ ":" | %s }}`,
 			getThemeColor("label_icon"), getThemeColor("label_text"), getThemeColor("label_text")),
 		Active: fmt.Sprintf(`{{ "%s" | %s }} {{ if .Selected }}{{ "✔ " | %s }}{{ else }}{{ "  " }}{{ end }}`+
-			`{{ .Alias | %s }} ({{ .Host | %s }}){{ "\t" }}{{ .GroupLabels | %s }}`,
+			`{{ .Alias | %s }}{{ if and .Host (ne .Host .Alias) }} ({{ .Host | %s }}){{ end }}{{ "\t" }}{{ .GroupLabels | %s }}`,
 			promptCursorIcon, getThemeColor("cursor_icon"), getThemeColor("active_selected"),
 			getThemeColor("active_alias"), getThemeColor("active_host"), getThemeColor("active_group")),
 		Inactive: fmt.Sprintf(`   {{ if .Selected }}{{ "✔ " | %s }}{{ else }}{{ "  " }}{{ end }}`+
-			`{{ .Alias | %s }} ({{ .Host | %s }}){{ "\t" }}{{ .GroupLabels | %s }}`,
+			`{{ .Alias | %s }}{{ if and .Host (ne .Host .Alias) }} ({{ .Host | %s }}){{ end }}{{ "\t" }}{{ .GroupLabels | %s }}`,
 			getThemeColor("inactive_selected"),
 			getThemeColor("inactive_alias"), getThemeColor("inactive_host"), getThemeColor("inactive_group")),
 		Details:   getDefaultDetailsTemplate(),
@@ -172,12 +174,13 @@ func (t *tableTheme) cellStyle(host *sshHost, row, col int) lipgloss.Style {
 }
 
 func (t *tableTheme) borderStyle(idx, row, col int, borderType table.BorderType) lipgloss.Style {
-	if row == idx {
+	switch row {
+	case idx:
 		switch borderType {
 		case table.BorderBottom:
 			return t.selectedBorderStyle
 		}
-	} else if row == idx+1 {
+	case idx + 1:
 		switch borderType {
 		case table.BorderLeft:
 			if col == 0 {
@@ -190,7 +193,7 @@ func (t *tableTheme) borderStyle(idx, row, col int, borderType table.BorderType)
 	return t.defaultBorderStyle
 }
 
-func (t *tableTheme) renderItems(items []interface{}, idx int) string {
+func (t *tableTheme) renderItems(items []any, idx int) string {
 	var data [][]string
 	for _, item := range items {
 		host := item.(*sshHost)
@@ -217,7 +220,7 @@ func (t *tableTheme) renderItems(items []interface{}, idx int) string {
 	return result
 }
 
-func (t *tableTheme) renderDetails(item interface{}) string {
+func (t *tableTheme) renderDetails(item any) string {
 	host := item.(*sshHost)
 	var data [][]string
 	addItem := func(name, value string) {
@@ -232,9 +235,7 @@ func (t *tableTheme) renderDetails(item interface{}) string {
 		case "host":
 			addItem("Host", host.Host)
 		case "port":
-			if host.Port != "22" {
-				data = append(data, []string{"Port", host.Port})
-			}
+			addItem("Port", host.Port)
 		case "user":
 			addItem("User", host.User)
 		case "grouplabels":
@@ -248,7 +249,7 @@ func (t *tableTheme) renderDetails(item interface{}) string {
 		case "remotecommand":
 			addItem("RemoteCommand", host.RemoteCommand)
 		default:
-			warning("Unknown prompt detail item: %s", item)
+			addItem(item, getExConfig(host.Args, item))
 		}
 	}
 	tbl := table.New().BorderRow(true).Rows(data...).
@@ -266,23 +267,22 @@ func (t *tableTheme) renderDetails(item interface{}) string {
 }
 
 func getTableTheme() *promptTheme {
-	renderer := lipgloss.NewRenderer(os.Stderr)
-	baseStyle := renderer.NewStyle()
-	cellStyle := baseStyle.Copy().Padding(0, 1)
+	baseStyle := lipgloss.NewStyle()
+	cellStyle := baseStyle.Padding(0, 1)
 	table := tableTheme{
-		tableHeaderStyle:    cellStyle.Copy().Foreground(lipgloss.Color(getThemeColor("table_header"))),
-		defaultAliasStyle:   cellStyle.Copy().Foreground(lipgloss.Color(getThemeColor("default_alias"))),
-		defaultHostStyle:    cellStyle.Copy().Foreground(lipgloss.Color(getThemeColor("default_host"))),
-		defaultGroupStyle:   cellStyle.Copy().Foreground(lipgloss.Color(getThemeColor("default_group"))),
-		selectedIconStyle:   cellStyle.Copy().Foreground(lipgloss.Color(getThemeColor("selected_icon"))).Bold(true),
-		selectedAliasStyle:  cellStyle.Copy().Foreground(lipgloss.Color(getThemeColor("selected_alias"))).Bold(true),
-		selectedHostStyle:   cellStyle.Copy().Foreground(lipgloss.Color(getThemeColor("selected_host"))).Bold(true),
-		selectedGrouplStyle: cellStyle.Copy().Foreground(lipgloss.Color(getThemeColor("selected_group"))).Bold(true),
-		defaultBorderStyle:  baseStyle.Copy().Foreground(lipgloss.Color(getThemeColor("default_border"))).Faint(true),
-		selectedBorderStyle: baseStyle.Copy().Foreground(lipgloss.Color(getThemeColor("selected_border"))).Bold(true),
-		detailsNameStyle:    cellStyle.Copy().Foreground(lipgloss.Color(getThemeColor("details_name"))),
-		detailsValueStyle:   cellStyle.Copy().Foreground(lipgloss.Color(getThemeColor("details_value"))),
-		detailsBorderStyle:  baseStyle.Copy().Foreground(lipgloss.Color(getThemeColor("details_border"))).Faint(true),
+		tableHeaderStyle:    cellStyle.Foreground(lipgloss.Color(getThemeColor("table_header"))),
+		defaultAliasStyle:   cellStyle.Foreground(lipgloss.Color(getThemeColor("default_alias"))),
+		defaultHostStyle:    cellStyle.Foreground(lipgloss.Color(getThemeColor("default_host"))),
+		defaultGroupStyle:   cellStyle.Foreground(lipgloss.Color(getThemeColor("default_group"))),
+		selectedIconStyle:   cellStyle.Foreground(lipgloss.Color(getThemeColor("selected_icon"))).Bold(true),
+		selectedAliasStyle:  cellStyle.Foreground(lipgloss.Color(getThemeColor("selected_alias"))).Bold(true),
+		selectedHostStyle:   cellStyle.Foreground(lipgloss.Color(getThemeColor("selected_host"))).Bold(true),
+		selectedGrouplStyle: cellStyle.Foreground(lipgloss.Color(getThemeColor("selected_group"))).Bold(true),
+		defaultBorderStyle:  baseStyle.Foreground(lipgloss.Color(getThemeColor("default_border"))).Faint(true),
+		selectedBorderStyle: baseStyle.Foreground(lipgloss.Color(getThemeColor("selected_border"))).Bold(true),
+		detailsNameStyle:    cellStyle.Foreground(lipgloss.Color(getThemeColor("details_name"))),
+		detailsValueStyle:   cellStyle.Foreground(lipgloss.Color(getThemeColor("details_value"))),
+		detailsBorderStyle:  baseStyle.Foreground(lipgloss.Color(getThemeColor("details_border"))).Faint(true),
 	}
 	return &promptTheme{
 		HideLabel:       true,

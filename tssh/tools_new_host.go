@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2023-2024 The Trzsz SSH Authors.
+Copyright (c) 2023-2026 The Trzsz SSH Authors.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -55,7 +55,7 @@ func (n *newHostTool) promptConfigPath() {
 			stat, err := os.Stat(path)
 			if os.IsNotExist(err) {
 				dir := filepath.Dir(path)
-				if !isFileExist(dir) {
+				if !isDirExist(dir) {
 					if err := os.MkdirAll(dir, 0700); err != nil {
 						return fmt.Errorf("create directory [%s] failed: %v", dir, err)
 					}
@@ -69,7 +69,7 @@ func (n *newHostTool) promptConfigPath() {
 			if err != nil {
 				return fmt.Errorf("open config file failed: %v", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 			n.existingConfig, err = ssh_config.Decode(file)
 			if err != nil {
 				return fmt.Errorf("decode existing config failed: %v", err)
@@ -109,7 +109,7 @@ func (n *newHostTool) promptHostName() {
 			if name == "" {
 				return fmt.Errorf("empty host name")
 			}
-			if _, err := net.LookupHost(name); err != nil {
+			if _, err := lookupHostWithTimeout(name, 5*time.Second); err != nil {
 				return fmt.Errorf("lookup host failed: %v", err)
 			}
 			return nil
@@ -129,7 +129,7 @@ func (n *newHostTool) promptHostPort() {
 			if err != nil {
 				return fmt.Errorf("connect to server failed: %v", err)
 			}
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 			return nil
 		}}), 10, 16)
 	n.hostPort = uint16(port)
@@ -157,13 +157,13 @@ func (n *newHostTool) writeHost() {
 	if err != nil {
 		toolsErrorExit("open config file failed: %v", err)
 	}
-	defer file.Close()
-	if _, err := file.WriteString(fmt.Sprintf(`
+	defer func() { _ = file.Close() }()
+	if _, err := fmt.Fprintf(file, `
 Host %s
     HostName %s
     Port %d
     User %s
-`, n.hostAlias, n.hostName, n.hostPort, n.userName)); err != nil {
+`, n.hostAlias, n.hostName, n.hostPort, n.userName); err != nil {
 		toolsErrorExit("write config file failed: %v", err)
 	}
 	if n.password != "" {
@@ -171,8 +171,9 @@ Host %s
 		if err != nil {
 			toolsErrorExit("encode password failed: %v", err)
 		}
-		if _, err := file.WriteString(fmt.Sprintf(`    #!! encPassword %s
-`, secret)); err != nil {
+		if _, err := fmt.Fprintf(file, `    #!! encPassword %s
+    #!! encQuestionAnswer1 %s
+`, secret, secret); err != nil {
 			toolsErrorExit("write config file failed: %v", err)
 		}
 	}
@@ -184,6 +185,13 @@ func (n *newHostTool) loginImmediately() bool {
 }
 
 func execNewHost(args *sshArgs) (int, bool) {
+	state, err := makeStdinRaw()
+	if err != nil {
+		toolsErrorExit("make stdin raw failed: %v", err)
+	}
+	defer resetStdin(state)
+	addOnExitFunc(func() { resetStdin(state) })
+
 	n := &newHostTool{}
 
 	chooseLanguage()
@@ -204,7 +212,14 @@ func execNewHost(args *sshArgs) (int, bool) {
 
 	n.writeHost()
 
-	if n.loginImmediately() {
+	if !isRunningOnOldWindows.Load() && n.loginImmediately() {
+		if n.configPath != userConfig.configPath {
+			args.ConfigFile = n.configPath
+			if err := initUserConfig(args.ConfigFile); err != nil {
+				warning("init user config [%s] failed: %v", args.ConfigFile, err)
+				return kExitCodeUserConfig, true
+			}
+		}
 		args.Destination = n.hostAlias
 		return 0, false
 	}

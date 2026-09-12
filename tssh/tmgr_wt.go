@@ -3,7 +3,7 @@
 /*
 MIT License
 
-Copyright (c) 2023-2024 The Trzsz SSH Authors.
+Copyright (c) 2023-2026 The Trzsz SSH Authors.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -124,7 +124,7 @@ func (m *wtMgr) openPanes(hosts []*sshHost) {
 		}
 		time.Sleep(100 * time.Millisecond) // wait for new pane focus
 	}
-	for i := 0; i < len(matrix); i++ {
+	for i := range matrix {
 		if i > 0 {
 			if err := exec.Command("cmd", "/c", "wt", "-w", "0", "mf", "down").Run(); err != nil {
 				warning("Failed to move wt focus: %v", err)
@@ -145,7 +145,7 @@ func (m *wtMgr) openPanes(hosts []*sshHost) {
 
 func commandExists(exe string) bool {
 	path := os.Getenv("Path")
-	for _, p := range strings.Split(path, ";") {
+	for p := range strings.SplitSeq(path, ";") {
 		if isFileExist(filepath.Join(p, exe)) {
 			return true
 		}
@@ -172,4 +172,7 @@ func getTmuxManager() terminalManager {
 
 func getIterm2Manager() terminalManager {
 	return nil
+}
+
+func initIterm2Session() {
 }

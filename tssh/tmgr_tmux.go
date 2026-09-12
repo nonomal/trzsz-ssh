@@ -3,7 +3,7 @@
 /*
 MIT License
 
-Copyright (c) 2023-2024 The Trzsz SSH Authors.
+Copyright (c) 2023-2026 The Trzsz SSH Authors.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,10 +32,14 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/trzsz/shellescape"
 )
 
 type tmuxMgr struct {
-	keywords string
+	keywords     string
+	majorVersion int
+	minorVersion int
 }
 
 func (m *tmuxMgr) openTerminals(keywords string, openType int, hosts []*sshHost) {
@@ -58,7 +62,7 @@ func (m *tmuxMgr) openTerminals(keywords string, openType int, hosts []*sshHost)
 }
 
 func (m *tmuxMgr) appendArgs(alias string, args ...string) ([]string, error) {
-	cmdArgs := args
+	var cmdArgs []string
 	keywordsMatched := false
 	for _, arg := range os.Args {
 		if m.keywords != "" && arg == m.keywords {
@@ -76,16 +80,14 @@ func (m *tmuxMgr) appendArgs(alias string, args ...string) ([]string, error) {
 	} else if !keywordsMatched {
 		return nil, fmt.Errorf("unable to handle replace keywords '%s'", m.keywords)
 	}
-	return cmdArgs, nil
+	return append(args, shellescape.QuoteCommand(cmdArgs)), nil
 }
 
 func (m *tmuxMgr) openWindows(hosts []*sshHost) {
 	if err := exec.Command("tmux", "renamew", hosts[0].Alias).Run(); err != nil {
 		warning("Failed to rename tmux window: %v", err)
 	} else {
-		onExitFuncs = append(onExitFuncs, func() {
-			_ = exec.Command("tmux", "setw", "automatic-rename").Run()
-		})
+		addOnExitFunc(func() { _ = exec.Command("tmux", "setw", "automatic-rename").Run() })
 	}
 	for _, host := range hosts[1:] {
 		args, err := m.appendArgs(host.Alias, "neww", "-n", host.Alias)
@@ -102,24 +104,27 @@ func (m *tmuxMgr) openWindows(hosts []*sshHost) {
 
 func (m *tmuxMgr) openPanes(hosts []*sshHost) {
 	matrix := getPanesMatrix(hosts)
-	out, err := exec.Command("tmux", "display", "-p", "#{pane_id}|#{pane_title}").Output()
+	out, err := exec.Command("tmux", "display", "-p", "#{pane_id}|#{pane_title}|#{version}").Output()
 	if err != nil {
 		warning("Failed to get tmux pane id and title: %v", err)
 		return
 	}
 	output := strings.TrimSpace(string(out))
-	tokens := strings.SplitN(output, "|", 2)
+	tokens := strings.Split(output, "|")
+	if len(tokens) > 2 && tokens[2] != "" {
+		m.parseTmuxVersion(tokens[2])
+	}
 	matrix[0][0].paneId = tokens[0]
 	for i := len(matrix) - 1; i > 0; i-- {
 		matrix[i][0].paneId = m.splitWindow(matrix[i][0].alias, "-v", matrix[0][0].paneId, strconv.Itoa(100/(i+1)))
 	}
-	for i := 0; i < len(matrix); i++ {
+	for i := range matrix {
 		for j := len(matrix[i]) - 1; j > 0; j-- {
 			matrix[i][j].paneId = m.splitWindow(matrix[i][j].alias, "-h", matrix[i][0].paneId, strconv.Itoa(100/(j+1)))
 		}
 	}
 	// change panes title
-	for i := 0; i < len(matrix); i++ {
+	for i := range matrix {
 		for j := 0; j < len(matrix[i]); j++ {
 			if matrix[i][j].paneId != "" {
 				_ = exec.Command("tmux", "selectp", "-t", matrix[i][j].paneId, "-T", matrix[i][j].alias).Run()
@@ -128,12 +133,10 @@ func (m *tmuxMgr) openPanes(hosts []*sshHost) {
 	}
 	if len(tokens) > 1 && tokens[1] != "" {
 		// reset pane title after exit
-		onExitFuncs = append(onExitFuncs, func() {
-			_ = exec.Command("tmux", "selectp", "-t", tokens[0], "-T", tokens[1]).Run()
-		})
+		addOnExitFunc(func() { _ = exec.Command("tmux", "selectp", "-t", tokens[0], "-T", tokens[1]).Run() })
 	}
 	// reset panes order
-	for i := 0; i < len(matrix); i++ {
+	for i := range matrix {
 		for j := 0; j < len(matrix[i]); j++ {
 			if matrix[i][j].paneId != "" {
 				_ = exec.Command("tmux", "selectp", "-t", matrix[i][j].paneId).Run()
@@ -146,7 +149,13 @@ func (m *tmuxMgr) splitWindow(alias, axes, target, percentage string) string {
 	if target == "" {
 		return ""
 	}
-	args, err := m.appendArgs(alias, "splitw", axes, "-t", target, "-p", percentage, "-P", "-F", "#{pane_id}")
+	var err error
+	var args []string
+	if m.majorVersion > 3 || (m.majorVersion == 3 && m.minorVersion >= 1) {
+		args, err = m.appendArgs(alias, "splitw", axes, "-t", target, "-l", percentage+"%", "-P", "-F", "#{pane_id}")
+	} else {
+		args, err = m.appendArgs(alias, "splitw", axes, "-t", target, "-p", percentage, "-P", "-F", "#{pane_id}")
+	}
 	if err != nil {
 		warning("Failed to split tmux window: %v", err)
 		return ""
@@ -179,4 +188,26 @@ func getTmuxManager() terminalManager {
 
 func getWindowsTerminalManager() terminalManager {
 	return nil
+}
+
+func (m *tmuxMgr) parseTmuxVersion(version string) {
+	pos := strings.IndexByte(version, '.')
+	if pos < 1 {
+		return
+	}
+	if ver, err := strconv.ParseUint(version[:pos], 10, 32); err == nil {
+		m.majorVersion = int(ver)
+	}
+	subver := version[pos+1:]
+	pos = len(subver)
+	for i, c := range subver {
+		if c >= '0' && c <= '9' {
+			continue
+		}
+		pos = i
+		break
+	}
+	if ver, err := strconv.ParseUint(subver[:pos], 10, 32); err == nil {
+		m.minorVersion = int(ver)
+	}
 }

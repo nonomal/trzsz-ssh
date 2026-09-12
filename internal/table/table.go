@@ -1,9 +1,34 @@
+/*
+MIT License
+
+Copyright (c) 2021-2025 Charmbracelet, Inc
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 package table
 
 import (
+	"slices"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -250,7 +275,7 @@ func (t *Table) Offset(o int) *Table {
 
 // String returns the table as a string.
 func (t *Table) String() string {
-	hasHeaders := t.headers != nil && len(t.headers) > 0
+	hasHeaders := len(t.headers) > 0
 	hasRows := t.data != nil && t.data.Rows() > 0
 
 	if !hasHeaders && !hasRows {
@@ -423,14 +448,7 @@ func (t *Table) FixedColumns(columns ...int) *Table {
 func (t *Table) getExpandableColumns() []int {
 	var idx []int
 	for i := 0; i < len(t.widths); i++ {
-		fixed := false
-		for _, j := range t.fixedColumns {
-			if i == j {
-				fixed = true
-				break
-			}
-		}
-		if !fixed {
+		if !slices.Contains(t.fixedColumns, i) {
 			idx = append(idx, i)
 		}
 	}
@@ -448,7 +466,7 @@ func (t *Table) computeWidth() int {
 
 // computeHeight computes the height of the table in it's current configuration.
 func (t *Table) computeHeight() int {
-	hasHeaders := t.headers != nil && len(t.headers) > 0
+	hasHeaders := len(t.headers) > 0
 	return sum(t.heights) - 1 + btoi(hasHeaders) +
 		btoi(t.borderTop) + btoi(t.borderBottom) +
 		btoi(t.borderHeader) + t.data.Rows()*btoi(t.borderRow)
@@ -543,7 +561,7 @@ func (t *Table) constructHeaders() string {
 func (t *Table) constructRow(index int) string {
 	var s strings.Builder
 
-	hasHeaders := t.headers != nil && len(t.headers) > 0
+	hasHeaders := len(t.headers) > 0
 	height := t.heights[index+btoi(hasHeaders)]
 
 	var cells []string

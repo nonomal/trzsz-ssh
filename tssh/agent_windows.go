@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2023-2024 The Trzsz SSH Authors.
+Copyright (c) 2023-2026 The Trzsz SSH Authors.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@ package tssh
 
 import (
 	"net"
+	"strings"
 	"time"
 
 	"github.com/Microsoft/go-winio"
@@ -50,6 +51,9 @@ func dialAgent(addr string) (net.Conn, error) {
 	if addr == kPageantFakeAddr {
 		return pageant.NewPageantConn()
 	}
-	timeout := time.Second
-	return winio.DialPipe(addr, &timeout)
+	if strings.HasPrefix(addr, "\\\\") && strings.Contains(addr, "\\pipe\\") {
+		timeout := time.Second
+		return winio.DialPipe(addr, &timeout)
+	}
+	return net.DialTimeout("unix", addr, time.Second)
 }

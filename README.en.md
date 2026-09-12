@@ -1,29 +1,33 @@
-# trzsz-ssh ( tssh ) - an openssh client alternative
+## trzsz-ssh(tssh): Highly OpenSSH-compatible SSH client with extended features
 
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](https://choosealicense.com/licenses/mit/)
 [![GitHub Release](https://img.shields.io/github/v/release/trzsz/trzsz-ssh)](https://github.com/trzsz/trzsz-ssh/releases)
-[![WebSite](https://img.shields.io/badge/WebSite-https%3A%2F%2Ftrzsz.github.io%2Fssh-blue?style=flat)](https://trzsz.github.io/ssh)
-[![中文文档](https://img.shields.io/badge/%E4%B8%AD%E6%96%87%E6%96%87%E6%A1%A3-https%3A%2F%2Ftrzsz.github.io%2Fcn%2Fssh-blue?style=flat)](https://trzsz.github.io/cn/ssh)
+[![WebSite](https://img.shields.io/badge/WebSite-https%3A%2F%2Ftrzsz.github.io%2Ftssh-blue?style=flat)](https://trzsz.github.io/tssh)
+[![中文文档](https://img.shields.io/badge/%E4%B8%AD%E6%96%87%E6%96%87%E6%A1%A3-https%3A%2F%2Ftrzsz.github.io%2Fcn%2Ftssh-blue?style=flat)](https://trzsz.github.io/cn/tssh)
 
 trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the openssh client. It aims to provide complete compatibility with openssh, mirroring all its features, while also offering additional useful features not found in the openssh client.
 
-## Why to do
+trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports intermittent connectivity, allows roaming, and can be used on high-latency links such as cellular data connections, unstable Wi-Fi, etc.
 
-- Can't remember all server aliases, `tssh` login prompt supports searching and selecting servers to log in.
+### Why to do
 
-- `tssh` has built-in support for [trzsz](https://trzsz.github.io/) ( trz / tsz ), no need to open a new session to transfer files.
+- `tssh` login prompt supports searching and selecting the servers to log in to, if you can't remember them.
+
+- `tssh` has built-in support for [trzsz](https://trzsz.github.io/) ( trz / tsz ), no longer need to open a new session to transfer files.
 
 - `tssh` supports multiple selection and batch login, and supports executing the preset remote command.
 
 - `tssh` supports remember password, supports automated interaction, improving your login efficiency.
 
-- Use `tssh` instead of `trzsz ssh` on Windows, which solves the issue of slow upload speed of `trz`.
+- `tssh` instead of `trzsz ssh` on Windows, solves the issue of slow upload speed of `trz` on Windows.
 
-## Installation
+- `tssh` with [tsshd](https://github.com/trzsz/tsshd) are similar to mosh, solved some of mosh's issues, such as SSH forwarding and ProxyJump.
 
-**_Here is how to install `trzsz-ssh (tssh)` on the client side (choose one):_**
+### Installation
 
-- Install with [scoop](https://scoop.sh/) / [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) / [choco](https://community.chocolatey.org/) on Windows
+> 💡 **Note**: The package is named `trzsz-ssh` in Homebrew, while it’s usually named `tssh` elsewhere.
+
+- Install with scoop / winget / choco on Windows
 
   <details><summary><code>scoop install tssh</code> / <code>winget install tssh</code> / <code>choco install tssh</code></summary>
 
@@ -41,7 +45,7 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
 
   </details>
 
-- Install with [homebrew](https://brew.sh/) on MacOS
+- Install with Homebrew on MacOS
 
   <details><summary><code>brew install trzsz-ssh</code></summary>
 
@@ -82,7 +86,18 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
 
   </details>
 
-- Install with yum on Linux
+- Install with dnf on Fedora / CentOS / RHEL
+
+  <details><summary><code>sudo dnf install tssh</code></summary>
+
+  ```sh
+  sudo dnf copr enable @trzsz/trzsz
+  sudo dnf install tssh
+  ```
+
+  </details>
+
+- Install with yum on Legacy CentOS / RHEL
 
   <details><summary><code>sudo yum install tssh</code></summary>
 
@@ -108,7 +123,7 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
 
   </details>
 
-- Install with [yay](https://github.com/Jguer/yay) on ArchLinux
+- Install with yay on ArchLinux
 
   <details><summary><code>yay -S tssh</code></summary>
 
@@ -119,19 +134,51 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
 
   </details>
 
-- Install with Go ( Requires go 1.20 or later )
+- Install with Chromebrew on ChromeOS
+
+  <details><summary><code>crew install tssh</code></summary>
+
+  ```sh
+  crew install tssh
+  ```
+
+  </details>
+
+- Install with pixi / conda / mamba from [conda-forge](https://github.com/conda-forge/tssh-feedstock)
+
+  <details><summary><code>pixi global install tssh</code> / <code>conda install tssh</code> / <code>mamba install tssh</code></summary>
+
+  ```sh
+  pixi global install tssh
+  ```
+
+  ```sh
+  conda install -c conda-forge tssh
+  ```
+
+  ```sh
+  mamba install -c conda-forge tssh
+  ```
+
+  </details>
+
+- Install with Go ( Requires go 1.26 or later )
 
   <details><summary><code>go install github.com/trzsz/trzsz-ssh/cmd/tssh@latest</code></summary>
 
   ```sh
+  # latest release
   go install github.com/trzsz/trzsz-ssh/cmd/tssh@latest
+
+  # latest development version (main branch)
+  go install github.com/trzsz/trzsz-ssh/cmd/tssh@main
   ```
 
   The binaries are usually located in ~/go/bin/ ( C:\Users\your_name\go\bin\ on Windows ).
 
   </details>
 
-- Build from source ( Requires go 1.20 or later )
+- Build from source ( Requires go 1.26 or later )
 
   <details><summary><code>sudo make install</code></summary>
 
@@ -144,13 +191,31 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
 
   </details>
 
-- Download from the [GitHub Releases](https://github.com/trzsz/trzsz-ssh/releases), unzip and add to `PATH` environment.
+- Download from the [GitHub Releases](https://github.com/trzsz/trzsz-ssh/releases) (or [Pre-Release](https://github.com/trzsz/trzsz-ssh/releases/tag/dev)) and install locally
 
-## Login Prompt
+  <details><summary><code>download and install locally</code></summary>
+
+  ```sh
+  sudo apt install /tmp/tssh_*.deb
+
+  sudo dpkg -i /tmp/tssh_*.deb
+
+  sudo dnf install /tmp/tssh_*.rpm
+
+  sudo yum install /tmp/tssh_*.rpm
+
+  sudo rpm -i /tmp/tssh_*.rpm
+
+  tar zxvf tssh_*.tar.gz && sudo cp tssh_*/tssh /usr/bin/
+  ```
+
+  </details>
+
+### Login Prompt
 
 - Before use, you need to configure `~/.ssh/config` (for Windows, it is `C:\Users\xxx\.ssh\config`, replace `xxx` with your username).
 
-- For how to configure `~/.ssh/config`, please refer to the documentation of [openssh](https://manpages.debian.org/bookworm/openssh-client/ssh_config.5.en.html) ( `Match` section is not supported yet ).
+- For how to configure `~/.ssh/config`, please refer to the documentation of [openssh](https://manpages.debian.org/bookworm/openssh-client/ssh_config.5.en.html). `Match exec` is supported only when `UseOpenSSHConfig` is enabled (see configuration below).
 
 - Running `tssh` without arguments will open the login prompt. If there are arguments except destination will also open the login prompt.
 
@@ -180,20 +245,20 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
   | Open Tabs | Ctrl+T                          | t T                  | Batch login in new tabs    |
   | Open Pane | Ctrl+P                          | p P                  | Batch login in new panes   |
 
-## Custom Theme
+### Custom Theme
 
-- `tssh` supports a few themes. Choose one by setting `PromptThemeLayout` in `~/.tssh.conf`. Welcome to create more and better themes together.
+- `tssh` supports a few themes. Choose one by setting `PromptThemeLayout` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ). Welcome to create more and better themes together.
 
-- Each theme supports custom colors. Just configure the `PromptThemeColors` in `~/.tssh.conf` to override the default colors as you prefer.
+- Each theme supports custom colors. Just configure the `PromptThemeColors` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ) to override the default colors as you prefer.
 
 - Please [❤️vote❤️](https://github.com/trzsz/trzsz-ssh/issues/75) for your favorite theme. The theme with the highest number of votes will be set as the default theme in the next version.
 
-### tiny theme
+#### tiny theme
 
-- Configure `PromptThemeLayout = tiny` in `~/.tssh.conf` to choose `tiny theme`.
+- Configure `PromptThemeLayout = tiny` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ) to choose `tiny theme`.
   ![tssh tiny](https://trzsz.github.io/images/tssh_tiny.gif)
 
-- Configure `PromptThemeColors` in `~/.tssh.conf` and configure it in one line. `tiny theme` supports the following color items:
+- Configure `PromptThemeColors` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ) and configure it in one line. `tiny theme` supports the following color items:
 
   <details><summary><code>tiny theme colors and default values:</code></summary>
 
@@ -248,19 +313,19 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
 
   </details>
 
-### simple theme
+#### simple theme
 
-- Configure `PromptThemeLayout = simple` in `~/.tssh.conf` to choose `simple theme`.
+- Configure `PromptThemeLayout = simple` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ) to choose `simple theme`.
   ![tssh simple](https://trzsz.github.io/images/tssh_simple.gif)
 
 - The custom colors and default values of `simple theme` are exactly the same as the `tiny theme`.
 
-### table theme
+#### table theme
 
-- Configure `PromptThemeLayout = table` in `~/.tssh.conf` to choose `table theme`.
+- Configure `PromptThemeLayout = table` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ) to choose `table theme`.
   ![tssh table](https://trzsz.github.io/images/tssh_table.gif)
 
-- Configure `PromptThemeColors` in `~/.tssh.conf` and configure it in one line. `table theme` supports the following color items:
+- Configure `PromptThemeColors` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ) and configure it in one line. `table theme` supports the following color items:
 
   <details><summary><code>table theme colors and default values:</code></summary>
 
@@ -288,55 +353,107 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
 
 - For supported color enumerations, please refer to [lipgloss](https://github.com/charmbracelet/lipgloss#colors), except `help_tips` and `shortcuts` are the same as the `tiny theme`.
 
-## Support trzsz
+### Support trzsz
 
 - [trzsz](https://trzsz.github.io/) needs to be installed on the server to use `trz / tsz` for uploading and downloading files. Choose either the [Go version](https://trzsz.github.io/go) ( ⭐ Recommended ), [Py version](https://trzsz.github.io/), or [Js version](https://trzsz.github.io/js).
 
-- In the `~/.ssh/config` or `ExConfigPath` configuration file, configure `EnableDragFile` to `Yes` to enable the drag and drop to upload feature.
+- In the `~/.ssh/config` or `ExConfigPath` configuration file, configure `EnableDragFile` to `yes` to enable the drag and drop to upload feature.
 
   ```
   Host *
     # If configured in ~/.ssh/config, add `#!!` prefix to be compatible with openssh.
-    EnableDragFile Yes
+    EnableDragFile yes
+  ```
+
+- If you want to overwrite the existing files when dragging files to upload, configure `DragFileUploadCommand` to `trz -y`:
+
+  ```
+  Host xxx
+    # If configured in ~/.ssh/config, add `#!!` prefix to be compatible with openssh.
+    DragFileUploadCommand trz -y
   ```
 
 - If you want to temporarily enable the drag and drop to upload feature, use `tssh --dragfile` to log in.
 
-- In the `~/.ssh/config` or `ExConfigPath` configuration file, configure `EnableTrzsz` to `No` to disable the trzsz and zmodem feature.
+- In the `~/.ssh/config` or `ExConfigPath` configuration file, configure `EnableTrzsz` to `no` to disable the trzsz and zmodem feature.
 
   ```
   Host no_trzsz_nor_zmodem
     # If configured in ~/.ssh/config, add `#!!` prefix to be compatible with openssh.
-    EnableTrzsz No
+    EnableTrzsz no
+  ```
+
+- You can use the `--upload-file` argument to specify file or directory to upload directly in the command line, and you can specify the `trz` upload command arguments and save path after the server, such as:
+
+  ```sh
+  tssh --upload-file /path/to/file1 --upload-file /path/to/dir2 xxx_server '~/.local/bin/trz -d /tmp/'
+  ```
+
+- You can use `tsz` in the command line to directly download files and directories to your local computer. You can also use the `--download-path` argument to specify the path for local saving, such as:
+
+  ```sh
+  tssh -t --client --download-path /tmp/ xxx_server 'tsz -d /path/to/file1 /path/to/dir2'
   ```
 
 ![tssh trzsz](https://trzsz.github.io/images/tssh_trzsz.gif)
 
-## Support zmodem
+### Support zmodem
 
-- In the `~/.ssh/config` or `ExConfigPath` configuration file, configure `EnableZmodem` to `Yes` to enable the zmodem ( rz / sz ) feature.
+- In the `~/.ssh/config` or `ExConfigPath` configuration file, configure `EnableZmodem` to `yes` to enable the zmodem ( rz / sz ) feature.
 
   ```
   Host *
     # If configured in ~/.ssh/config, add `#!!` prefix to be compatible with openssh.
-    EnableZmodem Yes
+    EnableZmodem yes
+  ```
+
+- If you want to use `rz` to upload when dragging files, configure `DragFileUploadCommand` to `rz`:
+
+  ```
+  Host xxx
+    # If configured in ~/.ssh/config, add `#!!` prefix to be compatible with openssh.
+    EnableDragFile yes
+    DragFileUploadCommand rz
   ```
 
 - Not only the server, but also the local computer needs to install `lrzsz`. For Windows, you can download from [lrzsz-win32](https://github.com/trzsz/lrzsz-win32/releases), unzip and add to `PATH` environment, or install it as follows:
 
   ```
-  scoop install lrzsz
-  ```
-
-  ```
-  choco install lrzsz
+  scoop install lrzsz / choco install lrzsz / winget install lrzsz
   ```
 
 - If you want to temporarily enable the zmodem ( rz / sz ) feature, use `tssh --zmodem` to log in.
 
 - About the progress, the transferred and speed are not precise. It just indicating that the transfer is in progress.
 
-## Batch Login
+- You can use the `--upload-file` argument to specify file to upload directly in the command line, and `cd` to the save path and specify the `rz` command with arguments after the server, such as:
+
+  ```sh
+  tssh --upload-file /path/to/file1 --upload-file /path/to/file2 xxx_server 'cd /tmp/ && rz -yeb'
+  ```
+
+- You can use `sz` in the command line to directly download files to your local computer. You can also use the `--download-path` argument to specify the path for local saving, such as:
+
+  ```sh
+  tssh -t --client --zmodem --download-path /tmp/ xxx_server 'sz /path/to/file1 /path/to/file2'
+  ```
+
+### Support scp sftp
+
+- Using the `Remember Password` feature of `tssh`, you no longer need to manually enter your password. The same applies to `scp` and `sftp`.
+
+- Using the `UDP Mode` feature of `tssh`, the SSH session uses an encrypted UDP channel for communication. The same applies to `scp` and `sftp`.
+
+- As long as `scp` and `sftp` use the `-S` option to specify `tssh`, or configure an alias, you can use some of the features provided by `tssh`, such as:
+
+  ```sh
+  sftp -S tssh xxx
+  scp -S tssh xxx @xxx:/tmp/
+  alias tscp='scp -S tssh'
+  alias tsftp='sftp -S tssh'
+  ```
+
+### Batch Login
 
 - tssh supports selecting multiple servers in `iTerm2`( Requires [Python API](https://iterm2.com/python-api-auth.html), no need to `Allow all apps to connect` ),`tmux` and `Windows Terminal`, logging in to them in batches, and executing pre-specified commands in batches.
 
@@ -355,7 +472,7 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
 
 ![tssh batch](https://trzsz.github.io/images/tssh_batch.gif)
 
-## Group Labels
+### Group Labels
 
 - If there are a lot of servers, `GroupLabels` can be used to quickly find the target server when searching by `/`.
 
@@ -376,7 +493,7 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
       #!! GroupLabels label4 group5
   ```
 
-## Automated Interaction
+### Automated Interaction
 
 - Supports automated interaction feature similar to `expect`. After logging into the server, it automatically matches the server's output and then enters input accordingly.
 
@@ -447,7 +564,7 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
 
 - If you don’t know how to configure `ExpectPattern2`, you can first configure `ExpectCount` to `2`, then use `tssh --debug` to log in, you will see the output captured by `expect`, and you can directly copy the last part of the output to configure `ExpectPattern2`. Replacing `2` with any other number will also work.
 
-## Remember Password
+### Remember Password
 
 - It is recommended to use public key authentication to log in. Please refer to openssh documentation.
 
@@ -477,7 +594,15 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
       Password 111111  # supports plain text, but it is recommended to encrypt with `tssh --enc-secret`.
   ```
 
-- - If `ControlMaster` multiplexing is enabled or using `Warp` terminal, you will need to use the `Automated Interaction` mentioned earlier to achieve remembering password. Please refer to the earlier `Automated Interaction` section, simply add a `Ctrl` prefix as follows:
+- If you are still prompted to enter password after remembering password, it may be need to [remember answers](#remember-answers). Try configuring `encQuestionAnswer1`:
+
+  ```
+  Host test1
+      # The following ciphertext was generated by encoding `123456` with `tssh --enc-secret`.
+      #!! encQuestionAnswer1 756b17766f45bdc44c37f811db9990b0880318d5f00f6531b15e068ef1fde2666550
+  ```
+
+- - If `ControlMaster` multiplexing is enabled, or in older versions of the `Warp` terminal, you will need to use the `Automated Interaction` mentioned earlier to achieve remembering password. Please refer to the earlier `Automated Interaction` section, simply add a `Ctrl` prefix as follows:
 
   ```
   Host ctrl
@@ -508,7 +633,56 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
 
 - Still ask for password after `Remember Password`? Maybe it's `keyboard interactive authentication`, please refer to `Remember Answers` below.
 
-## Remember Answers
+### External Password Manager
+
+- For any secret configuration (e.g. `Password`, `Passphrase`, `QuestionAnswer1`, `TotpSecret1`), you can use an external command to retrieve the secret at runtime by adding a `Command` suffix to the key name. The command's stdout (trimmed) is used as the secret value.
+
+- The following tokens are supported in the command and will be expanded before execution:
+
+  | Token | Expansion |
+  | ----- | --------- |
+  | `%n`  | Host alias (the `Host` value in ssh config) |
+  | `%h`  | Remote hostname (`HostName`) |
+  | `%r`  | Remote username (`User`) |
+  | `%p`  | Remote port (`Port`) |
+  | `%%`  | Literal `%` |
+
+- Priority: `enc{Key}` (encrypted) > `{Key}Command` (external command) > `{Key}` (plain text).
+
+- Examples with various password managers:
+
+  ```
+  # gopass (https://github.com/gopass-io/gopass)
+  Host server1
+      #!! PasswordCommand gopass show -o ssh/%n
+      #!! PassphraseCommand gopass show -o ssh/%n/passphrase
+
+  # pass (https://www.passwordstore.org)
+  Host server2
+      #!! PasswordCommand pass show ssh/%n
+
+  # 1Password CLI
+  Host server3
+      #!! PasswordCommand op read "op://Vault/ssh-%n/password"
+
+  # macOS Keychain
+  Host server4
+      #!! PasswordCommand security find-generic-password -a %r -s %n -w
+
+  # Bitwarden CLI
+  Host server5
+      #!! PasswordCommand bw get password ssh-%n
+
+  # HashiCorp Vault
+  Host server6
+      #!! PasswordCommand vault kv get -field=password secret/ssh/%n
+
+  # Use for all hosts with a single command
+  Host *
+      #!! PasswordCommand gopass show -o ssh/%n
+  ```
+
+### Remember Answers
 
 - In addition, there is a keyboard interactive authentication. The server returns some questions, and log in by providing the correct answers. Many custom one-time passwords are implemented by it.
 
@@ -555,7 +729,15 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
       encotp636f64653a20 77b4ce85d087b39909e563efb165659b22b9ea700a537f1258bdf56ce6fdd6ea70bc7591ea5c01918537a65433133bc0bd5ed3e4
   ```
 
-- If `ControlMaster` multiplexing is enabled or using `Warp` terminal, you will need to use the `Automated Interaction` mentioned earlier to achieve remembering answers.
+- You can write a program to obtain the one-time password. Specify the `%q` argument if you want to get the question. Just output the one-time password to stdout and exit with 0, and the debugging information can be output to stderr (you can see it when running `tssh --debug`). Configuration example (the serial number represents the number of questions, generally there is only one question, just configure `OtpCommand1`):
+
+  ```
+  Host custom_otp_command
+      #!! OtpCommand1 /path/to/your_own_program %q
+      #!! OtpCommand2 python C:\your_python_code.py %q
+  ```
+
+- If `ControlMaster` multiplexing is enabled, or in older versions of the `Warp` terminal, you will need to use the `Automated Interaction` mentioned earlier to achieve remembering answers.
 
   ```
   Host ctrl_totp
@@ -571,9 +753,9 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
       #!! CtrlExpectSendEncOtp1 77b4ce85d0...  # Or configure the encrypted command line encoded using `tssh --enc-secret`
   ```
 
-## Custom Configuration
+### Custom Configuration
 
-- The following custom configurations are supported in `~/.tssh.conf` (`C:\Users\your_name\.tssh.conf` on Windows):
+- The following custom configurations are supported in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf`, `C:\Users\your_name\.tssh.conf` on Windows):
 
   ```
   # SSH configuration path, the default is ~/.ssh/config
@@ -588,6 +770,16 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
   # The automatically save path for tsz downloading, the default is empty which poping up a folder dialog.
   DefaultDownloadPath = ~/Downloads
 
+  # The directories allowed for automatic upload (without popping up a file selection dialog). You can configure one or multiple paths separated by spaces. If a path contains spaces, wrap the entire path in single or double quotes. The configured paths must be absolute paths or start with `~/`.
+  # ⚠️ Security Warning: Please use this feature with caution. If you log into a malicious server, the server could stealthily steal all files under the configured directories without your confirmation.
+  AllowedAutoUploadDirs = ~/Downloads/ '/Users/username/My Documents/'
+
+  # The global drag file upload command, note that the priority configured in ~/.ssh/config is higher.
+  DragFileUploadCommand = trz -y
+
+  # The trzsz progress bar will gradient from the first color to the second color. Don't include `#`.
+  ProgressColorPair = B14FFF 00FFA3
+
   # When searching and selecting servers with tssh, the theme and colors.
   PromptThemeLayout = simple
   PromptThemeColors = {"active_host": "magenta|bold", "inactive_host": "magenta"}
@@ -599,17 +791,29 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
   PromptDefaultMode = search
 
   # When searching and selecting servers with tssh, the items displayed in details. The default is as follows:
-  PromptDetailItems = Alias Host Port User GroupLabels IdentityFile ProxyCommand ProxyJump RemoteCommand
+  PromptDetailItems = Alias Host Port User GroupLabels IdentityFile ProxyCommand ProxyJump RemoteCommand UdpMode TsshdPath
 
   # When searching and selecting servers with tssh, you can customize the cursor and selected icon:
   PromptCursorIcon = 🧨
   PromptSelectedIcon = 🍺
 
+  # The cursor style of the search input when searching and selecting a server in tssh.
+  # Set to 'pipe' to display a vertical bar (|). The default is a solid block (█):
+  PromptSearchPointer = pipe
+
   # Auto set terminal title after login. It will not be reset after exiting. Please set PROMPT_COMMAND in local shell.
-  SetTerminalTitle = Yes
+  # Set this to rtt to display the current connection RTT in the title (e.g. server 12ms).
+  SetTerminalTitle = yes
+
+  # Use `ssh -G` to evaluate OpenSSH config, including `Match` blocks.
+  UseOpenSSHConfig = yes
+
+  # Enable fuzzy host selection for partially matched destinations.
+  # This option is enabled by default. When enabled, tssh displays a selection menu for possible matching hosts.
+  FuzzyHostSelection = yes
   ```
 
-## Comments of Config
+### Comments of Config
 
 - The comments in the `tssh` configuration are basically the same as `openssh`, with some additional extended support, see the following table for details:
 
@@ -626,9 +830,67 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
 
 - `Key=Value # Comment` configuration (with `=` sign), `openssh` considers the content after `#` to be a comment in some cases, and considers it not to be a comment in some other cases; `tssh` always considers the content after `#` not to be a comment.
 
-## Other Features
+### Wayland Integration
 
-- Use `-f` to run in the background, you can add `--reconnect`, it will automatically reconnect when the background process exits.
+- In the `~/.ssh/config` or `ExConfigPath` configuration file, configure `EnableWaypipe` to `yes` to enable the Wayland (waypipe) integration feature.
+
+  ```
+  Host xxx
+    # If configured in ~/.ssh/config, add `#!!` prefix to be compatible with openssh.
+    EnableWaypipe yes
+  ```
+
+- Once Wayland (waypipe) integration is enabled, there is no need to explicitly use the waypipe program any more, tssh will automatically run the waypipe program in the background.
+
+- If the waypipe program cannot be found in the PATH on the client-side, you can specify the path to the waypipe program using the `WaypipeClientPath` configuration.
+
+- If the waypipe program cannot be found in the PATH on the server-side, you can specify the path to the waypipe program using the `WaypipeServerPath` configuration.
+
+- You can configure certain options for the waypipe program using `WaypipeClientOption` and `WaypipeServerOption` as needed. Note that you should not specify the options `-s`, `--socket`, `--login-shell`, `--display`, `client`, or `server`. Configuration example:
+
+  ```
+  Host xxx
+    #!! EnableWaypipe yes
+    #!! WaypipeClientPath /usr/bin/waypipe
+    #!! WaypipeServerPath /usr/bin/waypipe
+    #!! WaypipeClientOption -c lz4
+    #!! WaypipeServerOption -c lz4
+  ```
+
+### Clipboard Integration
+
+- In the `~/.ssh/config` or `ExConfigPath` configuration file, configure `EnableOSC52` to `yes` to enable the clipboard integration feature.
+
+  ```
+  Host *
+    # If configured in ~/.ssh/config, add `#!!` prefix to be compatible with openssh.
+    EnableOSC52 yes
+  ```
+
+- Clipboard integration allows remote servers to write to the local clipboard via OSC52 sequences.
+
+- On Linux, clipboard integration requires `xclip` or `xsel` command to be installed.
+
+### SSH Console
+
+- The `tssh` console is similar to OpenSSH escape sequences, and is planned to provide more user-friendly and powerful SSH control features. Currently supported features include:
+
+  - Send the escape character '~' ( ~ : equivalent to typing `~`, can be used as a remedy after accidentally triggering the console).
+  - Suspend the current SSH process ( ^Z : equivalent to `Ctrl + Z`, but it applies to `tssh` itself, not the process on the remote server).
+  - Terminate the current SSH session ( . : equivalent to Exit / Kill, can be used to kill the `tssh` process when it freezes due to network issues or other reasons).
+
+- The character between `(` and `:` are shortcuts, compatible with OpenSSH escape sequences. For example, typing `~.` quickly after a newline will quickly terminate the current SSH session.
+
+- The escape character for entering the SSH console can be configured via the `EscapeChar` option (default is `~`). The argument should be a single character, ‘^’ followed by a letter, and it should not conflict with other shortcut keys.
+
+- The `ConsoleEscapeTime` option configures how many seconds after pressing the `Enter` key should the `~` key be pressed to enter the SSH console. The default value is `1` second, which can be configured to `0` to disable the console feature:
+
+  ```
+  Host xxx
+    #!! ConsoleEscapeTime 1
+  ```
+
+### Other Features
 
 - Run `tssh --enc-secret`, enter the password or answer, and you can get the ciphertext for configuration (the encryption result for the same password is different each time):
 
@@ -652,6 +914,16 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
   - If downloading the `trzsz` installation package fails, you can download and specify it through `--trzsz-bin-path /path/to/trzsz.tar.gz`.
   - Note: `--install-trzsz` does not support Windows server, and does not support jump server (unless using `ProxyJump`).
 
+- Run `tssh --install-tsshd` to install [tsshd](https://github.com/trzsz/tsshd) to the server automatically.
+
+  - It is installed to the `~/.local/bin/` directory by default. You can specify the installation directory through `--install-path /path/to/install`.
+  - If the `--install-path` installation directory contains `~/`, single quotes must be added, such as `--install-path '~/path'`.
+  - If obtaining the latest version of `tsshd` fails, you can specify it through `--tsshd-version x.x.x`.
+  - If downloading the `tsshd` installation package fails, you can download and specify it through `--tsshd-bin-path /path/to/tsshd.tar.gz`.
+  - Note: `--install-tsshd` does not support Windows server, and does not support jump server (unless using `ProxyJump`).
+
+- If `SetTerminalTitle = rtt` is set in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ), the terminal title will display the current connection RTT (round-trip time), for example: server 12ms. For non-UDP mode, `ServerAliveInterval` must also be configured for RTT to be displayed.
+
 - About changing the terminal title, it can be achieved without `tssh`. It only needs to be configured in the server's shell configuration file (such as `~/.bashrc`):
 
   ```sh
@@ -662,28 +934,154 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
   PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD}\007"'
   ```
 
-  - If `SetTerminalTitle = Yes` is set in `~/.tssh.conf`, the terminal title is automatically set after login, but `PROMPT_COMMAND` on the server overrides the title set by `tssh`.
+  - If `SetTerminalTitle = yes` is set in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ), the terminal title is automatically set after login, but `PROMPT_COMMAND` on the server overrides the title set by `tssh`.
   - `tssh` does not reset to the original title after exiting, you need to set `PROMPT_COMMAND` in the local shell so that it overrides the title set by `tssh`.
 
-## UDP Mode
+- DNS SRV: Say you have a home network with multiple hosts, but you only have one external IP address. Set up SRV records as follows, and make similar configurations in `~/.ssh/config`:
 
-- Install [tsshd](https://github.com/trzsz/tsshd) on the server, use `tssh --udp xxx` to login to the server, or configure as follows to omit `--udp`:
+  ```sh
+  $ dig +short _ssh._tcp.myhost.mydomain.com SRV
+  1 1 22029 gateway.mydomain.com.
+  ```
 
   ```
   Host xxx
-      #!! UdpMode yes
-      #!! TsshdPath ~/go/bin/tsshd
+    #!! DnsSrvName myhost.mydomain.com
   ```
 
-- The `tssh` plays the role of `ssh` on the client side, and the `tsshd` plays the role of `sshd` on the server side.
+- Custom DNS Server: `tssh` can use a custom DNS server instead of the system resolver. This is useful when connecting through a VPN, testing internal DNS, or using public DNS services.
 
-- The `tssh` will first login to the server normally as an ssh client, and then run a new `tsshd` process on the server.
+  - Configure a default DNS server in `$XDG_CONFIG_HOME/tssh/tssh.conf` (or `~/.tssh.conf`):
 
-- The `tsshd` process listens on a random udp port between 61000 and 62000, and sends its port number and a secret key back to the `tssh` process over the ssh channel. The ssh connection is then shut down, and the `tssh` process communicates with the `tsshd` process over udp.
+    ```
+    CustomDnsServer = 1.1.1.1
+    ```
 
-## Trouble shooting
+  - You can also specify it for a single connection:
 
-- In the Warp terminal, the features like Blocks requires renaming `tssh` to `ssh`. It is recommended to create a soft link (friendly for updates):
+    ```sh
+    tssh --dns 8.8.8.8 server
+    ```
+
+  - You can also specify a custom port or use DNS over TCP:
+
+    ```
+    CustomDnsServer = tcp://1.1.1.1:5353
+    ```
+
+    ```sh
+    tssh --dns tcp://1.1.1.1:5353 server
+    ```
+
+  - If no port is specified, port `53` is used by default. The `--dns` option overrides `CustomDnsServer`.
+
+### Reconnect Mode
+
+- In foreground mode (not `-f`), use `--reconnect` to be prompted to restart the tssh process and log in to the remote server when it exits.
+
+- In background mode (use `-f`), use `--reconnect` to automatically restart the tssh process and log in to the remote server when it exits.
+
+- **Note:** `--reconnect` only restarts the tssh process and logs in; it does **not** resume the previous SSH session. To resume an existing session, please use UDP mode described below.
+
+### UDP Mode
+
+- Install [tsshd](https://github.com/trzsz/tsshd?tab=readme-ov-file#installation) on the server, use `tssh --udp xxx` to log in (latency-sensitive users can specify `--kcp` option), or configure as follows in `~/.ssh/config` to omit `--udp` or `--kcp` option:
+
+  ```
+  Host xxx
+      #!! UdpMode  ( yes | QUIC | KCP )
+  ```
+
+- The `tssh` plays the role of `ssh` on the client side, while the `tsshd` acts as `sshd` on the server side.
+
+- The `tssh` first logs in to the server normally as an ssh client, and then starts a new `tsshd` process on the server, where each session has its own `tsshd` process.
+
+- The `tsshd` process listens on a random UDP port in the range 61001–61999 (configurable via `TsshdPort`), and sends the port number and session secret keys back to the `tssh` process through the SSH channel. The SSH connection is then closed, and `tssh` communicates with `tsshd` over UDP.
+
+![tsshd attach session](https://trzsz.github.io/images/tsshd_attach.gif)
+
+### UDP Configurations
+
+```
+Host xxx
+    #!! UdpMode yes
+    #!! TsshdPort 61001-61999
+    #!! TsshdPath ~/go/bin/tsshd
+    #!! UdpAliveTimeout 1w3d
+    #!! UdpHeartbeatTimeout 3
+    #!! UdpReconnectTimeout 15
+    #!! UdpReconnectExitKey ^d
+    #!! ShowNotificationOnTop yes
+    #!! ShowFullNotifications yes
+    #!! UdpProxyMode UDP
+    #!! UdpMTU 1400
+    #!! UdpSessionAttach no
+    #!! UdpSessionName xxx
+```
+
+- `UdpMode`: `no` (the default: tssh works in TCP mode), `yes` (default protocol: `QUIC`), `QUIC` ([QUIC](https://github.com/quic-go/quic-go) protocol: faster speed), `KCP` ([KCP](https://github.com/xtaci/kcp-go) protocol: lower latency).
+
+- `TsshdPort`: Specifies the port range that tsshd listens on, default is [61001, 61999]. You can specify multiple discrete ports (e.g., `6022,7022`) or multiple discrete ranges (e.g., `8010-8020,9020-9030,10080`); tsshd will randomly choose an available port. You can also specify the port on the command line using `--tsshd-port`.
+
+- `TsshdPath`: Specifies the path to the tsshd binary on the server, lookup in $PATH if not configured. You can also specify the path on the command line using `--tsshd-path`.
+
+- `UdpAliveTimeout`: If the disconnection lasts longer than the time specified by `UdpAliveTimeout`, tssh and tsshd will both exit, and no longer support reconnection. Supported units: `w` for weeks, `d` for days, `h` for hours, `m` for minutes, `s` for seconds. The default is `1w3d` (10 days).
+
+- `UdpHeartbeatTimeout`: If the disconnection lasts longer than the time specified by `UdpHeartbeatTimeout`, tssh will try to reconnect to the server by a new path. The default is 3 seconds.
+
+- `UdpReconnectTimeout`: If the disconnection lasts longer than the time specified by `UdpReconnectTimeout`, tssh will display a notification indicating that the connection has been lost. The default is 15 seconds.
+
+- `UdpReconnectExitKey`: Specifies the shortcut key to exit (or detach) while waiting for reconnection. It accepts `none`, `ctrl+<letter>`, and `^<letter>`. The default is `^d` (Ctrl+D).
+
+- `ShowNotificationOnTop`: Whether the connection loss notification is displayed on the top. The default is yes, which may overwrite some of the previous output. Set it to `no` to display notifications on the current line of the cursor.
+
+- `ShowFullNotifications`: Whether to display the full notifications or a brief notification. The default is yes, which may output several lines to the screen. Set it to `no` will output only one line.
+
+- `UdpProxyMode`: The default transport protocol is `UDP`. If `UDP` traffic is blocked by firewalls in your network environment, you can set it to `TCP` to work around the restriction, though this may introduce additional latency.
+
+- `UdpMTU`: Sets the maximum transmission unit (MTU) for UDP packets. Default is 1400.
+
+- `UdpSessionAttach`: Defaults to `no`. When set to `yes`, it allows attaching to an existing session on the server. Meanwhile, the current session will also be made attachable, allowing you to re-attach to it later when logging in from other devices or networks.
+
+- `UdpSessionName`: Customizes the session name. This only takes effect when `UdpSessionAttach` is set to `yes` or when logging in with the `--attach` argument. If a session with this name already exists on the server, it will attach directly; if not, a new session with this name will be created for automatic attachment in future logins.
+
+### UDP Port Forwarding
+
+When running in UDP mode, UDP port forwarding is supported.
+
+- Command-line `-L` / `-R` options are extended with a `udp/` prefix (the `/` can also be replaced with `:`, `_`, or `-`):
+
+  ```
+  -L udp/[bind_address:]port:host:hostport
+  -L udp:[bind_address:]port:/remote_socket
+  -L udp_/local_socket:host:hostport
+  -L udp-/local_socket:/remote_socket
+
+  -R udp/[bind_address:]port:host:hostport
+  -R udp:[bind_address:]port:/local_socket
+  -R udp_/remote_socket:host:hostport
+  -R udp-/remote_socket:/local_socket
+  ```
+
+- Configuration is similar to `LocalForward` and `RemoteForward`, with an added `UDP` prefix (case-insensitive):
+
+  ```
+  UdpLocalForward [bind_address:]port host:hostport
+  UdpLocalForward [bind_address:]port /remote_socket
+  UdpLocalForward /local_socket host:hostport
+  UdpLocalForward /local_socket /remote_socket
+
+  UdpRemoteForward [bind_address:]port host:hostport
+  UdpRemoteForward [bind_address:]port /local_socket
+  UdpRemoteForward /remote_socket host:hostport
+  UdpRemoteForward /remote_socket /local_socket
+  ```
+
+- `ForwardUdpTimeout`: Sets the idle timeout for UDP forwarding sessions; the corresponding forwarding session will be cleared automatically if no data is sent or received within this period to free resources. Default is 5 minutes.
+
+### Trouble shooting
+
+- In older versions of the Warp terminal, the features like blocks requires renaming `tssh` to `ssh`. It is recommended to create a soft link (friendly for updates):
 
   ```
   sudo ln -sv $(which tssh) /usr/local/bin/ssh
@@ -691,24 +1089,36 @@ trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the op
 
   - After the soft link, `ssh -V` should output `trzsz ssh` plus the version number. If not, it means that the soft link is unsuccessful, or `openssh` has a higher priority in `PATH`, and you need to soft link to another path or adjust the priority of `PATH`.
 
-  - After the soft link, you need to use `ssh` directly, which is equivalent to `tssh`. If you still use `tssh`, it will not support the Blocks feature.
+  - In order to make `tssh` search login also support the blocks feature, you need to create a `tssh` function in `~/.bash_profile` ( bash ) or `~/.zshrc` ( zsh ):
+
+    ```sh
+    tssh() {
+        if [ $# -eq 0 ]; then
+            ssh FAKE_DEST_IN_WARP
+        else
+            ssh "$@"
+        fi
+    }
+    ```
 
   - The `--dragfile` argument may disable the Warp features, please refer to the previous section to configure `EnableDragFile` to enable the drag and drop to upload feature.
 
-  - After dragging files and directories into the Warp terminal, the upload may not be triggered immediately. You need to press the `Enter` key once to make it upload.
+- In the Warp terminal, after dragging files and directories into the Warp terminal, the upload may not be triggered immediately. You need to press the `Enter` key once to make it upload.
 
 - If you are using Windows7 or an older version of Windows10, and getting an error `enable virtual terminal failed`.
 
   - Try using `tssh` in [Cygwin](https://www.cygwin.com/), [MSYS2](https://www.msys2.org/) or [Git Bash](https://www.atlassian.com/git/tutorials/git-bash).
 
+  - Since `v0.1.21`, the default Windows version no longer supports Windows7, you need to download the version with the `win7` keyword in [Releases](https://github.com/trzsz/trzsz-ssh/releases) to use.
+
 - If the `tssh` specific configuration items are configured in `~/.ssh/config`, and openssh report an error `Bad configuration option`.
 
   - You can add `#!!` prefix to the items, openssh will treat it as a comment, while `tssh` will treat it as one of the valid configurations.
 
-## Contact
+### Contact
 
 Feel free to email the author <lonnywong@qq.com>, or create an [issue](https://github.com/trzsz/trzsz-ssh/issues). Welcome to join the QQ group: 318578930.
 
-## Sponsor
+### Sponsor
 
 [❤️ Sponsor trzsz ❤️](https://github.com/trzsz), buy the author a drink 🍺 ? Thank you for your support!
